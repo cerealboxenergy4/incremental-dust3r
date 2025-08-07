@@ -3,7 +3,6 @@ from dust3r.model import AsymmetricCroCo3DStereo
 from dust3r.utils.image import load_images
 from dust3r.image_pairs import make_pairs
 from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
-import os
 
 if __name__ == '__main__':
     device = 'cuda'
@@ -12,12 +11,14 @@ if __name__ == '__main__':
     lr = 0.01
     niter = 300
 
-    model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth.1"
+    input_dir = "round9f_1fps/"
+ 
+    model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
     model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
     # load_images can take a list of images or a directory
-    images = load_images(['/media/genchiprofac/Projects/round1f_20'], size=512)
-    pairs = make_pairs(images, scene_graph='swin-2', prefilter=None, symmetrize=True)
+    images = load_images("/media/genchiprofac/Projects/"+input_dir, size=512)
+    pairs = make_pairs(images, scene_graph='swin-1', prefilter=None, symmetrize=True)
     output = inference(pairs, model, device, batch_size=batch_size)
 
     # at this stage, you have the raw dust3r predictions
@@ -39,6 +40,7 @@ if __name__ == '__main__':
     # with only two input images, you could use GlobalAlignerMode.PairViewer: it would just convert the output
     # if using GlobalAlignerMode.PairViewer, no need to run compute_global_alignment
     scene = global_aligner(output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer)
+
     loss = scene.compute_global_alignment(init="mst", niter=niter, schedule=schedule, lr=lr)
 
     # retrieve useful values from scene:
@@ -48,10 +50,15 @@ if __name__ == '__main__':
     pts3d = scene.get_pts3d()
     confidence_masks = scene.get_masks()
 
-
-
     # visualize reconstruction
-    scene.save_image()
+    scene.save_output(input_dir[:-1])
+    scene.show()
+  
+
+
+
+
+"""
 
     # find 2D-2D matches between the two images
     from dust3r.utils.geometry import find_reciprocal_matches, xy_grid
@@ -83,4 +90,5 @@ if __name__ == '__main__':
         (x0, y0), (x1, y1) = viz_matches_im0[i].T, viz_matches_im1[i].T
         pl.plot([x0, x1 + W0], [y0, y1], '-+', color=cmap(i / (n_viz - 1)), scalex=False, scaley=False)
     pl.show(block=True)
-    pl.savefig('1.png')
+
+"""
