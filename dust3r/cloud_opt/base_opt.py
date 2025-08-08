@@ -348,7 +348,7 @@ class BasePCOptimizer (nn.Module):
                 viz.add_pointcloud(pts, (128, 0, 128))
 
         # viz.show(**kw)
-        viz.save_glb("experiments/"+path+"_test.glb")
+        viz.save_glb("experiments/"+path+".glb")
         return viz
 
 

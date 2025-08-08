@@ -10,16 +10,23 @@ if __name__ == '__main__':
     schedule = 'cosine'
     lr = 0.01
     niter = 300
+    edge_type = 'swin-3-noncyclic'
 
-    input_dir = "round9f_1fps/"
+    input_dir = "house_1x_1fps"
  
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
     model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
     # load_images can take a list of images or a directory
-    images = load_images("/media/genchiprofac/Projects/"+input_dir, size=512)
-    pairs = make_pairs(images, scene_graph='swin-1', prefilter=None, symmetrize=True)
-    output = inference(pairs, model, device, batch_size=batch_size)
+    images = load_images("/media/genchiprofac/Projects/assets/"+input_dir, size=512)
+    pairs = make_pairs(images, scene_graph=edge_type, prefilter=None, symmetrize=True)
+
+
+    add_edge_type="logwin-2"
+    additional_pairs = make_pairs(images, scene_graph=add_edge_type, prefilter=None, symmetrize=False)
+    add = False
+
+    output = inference(pairs + additional_pairs if add else pairs, model, device, batch_size=batch_size)
 
     # at this stage, you have the raw dust3r predictions
     view1, pred1 = output['view1'], output['pred1']
@@ -51,7 +58,7 @@ if __name__ == '__main__':
     confidence_masks = scene.get_masks()
 
     # visualize reconstruction
-    scene.save_output(input_dir[:-1])
+    scene.save_output(input_dir+"_"+((edge_type + "+"+add_edge_type) if add else edge_type))
     scene.show()
   
 
