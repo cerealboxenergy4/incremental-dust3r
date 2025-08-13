@@ -7,12 +7,12 @@ from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 if __name__ == '__main__':
     device = 'cuda'
     batch_size = 1
-    schedule = 'cosine'
+    schedule = 'linear'
     lr = 0.01
     niter = 300
-    edge_type = 'swin-2-noncyclic'
+    edge_type = 'swin-3-noncyclic'
 
-    input_dir = "house_1x_3fps"
+    input_dir = "house_1x_3fps_10"
  
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # load_images can take a list of images or a directory
     images = load_images("/media/genchiprofac/Projects/assets/"+input_dir, size=512)
 
-    images = images[:20]
+    images = images[:10]
     pairs = make_pairs(images, scene_graph=edge_type, prefilter=None, symmetrize=True)
 
     output = inference(pairs, model, device, batch_size=batch_size)

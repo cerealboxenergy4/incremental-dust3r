@@ -4,6 +4,8 @@ import torch
 from dust3r.cloud_opt.modular_optimizer import ModularPointCloudOptimizer
 from dust3r.cloud_opt.commons import edge_str
 from dust3r.utils.geometry import geotrf
+from dust3r.cloud_opt.init_im_poses import init_from_known_poses
+
 
 class IncrementalPCOptimizer(ModularPointCloudOptimizer):
     """
@@ -69,11 +71,36 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
             self.freeze_images(frozen)
 
     @torch.no_grad()
-    def add_image_with_hooks(self, new_id, hook_ids, optimize_pp=False):
+    def add_image_with_hooks(self, new_id, hook_ids, optimize_pp=True):
+        # 0) 엣지 등록 (new↔hooks)
+        added = []
+        for h in hook_ids:
+            if self._maybe_add_edge((new_id, h)): added.append((new_id, h))
+            if self._maybe_add_edge((h, new_id)): added.append((h, new_id))
+
+        # 1) 전부 잠깐 freeze (init_from_known_poses가 '모두 known'을 요구)
+        all_ids = list(range(self.n_imgs))
+        self.freeze_images(all_ids)  # im_poses / im_depth / focals / pp 다 freeze 상태로
+
+        # 2) 새 프레임 포즈/내참수 초기값 주입
+        self.init_pose_from_prev(new_id, hook_ids, mode="copy")  # mode = "copy" or "velocity"
+        #   intrinsics는 훅에서 복사(반드시 CPU로 건네기)
+        K0 = self.get_intrinsics()[hook_ids[0]].detach().cpu()
+        self.preset_intrinsics([K0], msk=[new_id])  # f, pp 주입 + 동결
+
+        # 3) 한 방에 초기화: pw_poses + depthmaps
+        init_from_known_poses(self, niter_PnP=10)   # ← 여기!
+        #   - 각 엣지(e)의 pw_pose를 PnP/정합으로 세팅
+        #   - 각 이미지의 depth를 pred_i[...,2]*scale로 세팅
+
+        # 4) 이제 새 프레임만 thaw해서 학습
+        self.freeze_images(all_ids)                      # 일단 다시 전부 freeze
+        self.thaw_images([new_id], optimize_pp=optimize_pp)
+        # (원하면 pw_poses도 활성화된 엣지만 학습되도록 그대로 두면 됨)
         """
         Add one new image and connect it only to hook_ids (e.g., the most recent 2)
         hook_ids: iterable (e.g., [k-1, k-2])
-        """
+        
         self.active_nodes.add(new_id)
         for h in hook_ids:
             self._maybe_add_edge((new_id, h))
@@ -83,8 +110,36 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         self.freeze_images(list(self.active_nodes - {new_id}))
         self.thaw_images([new_id], optimize_pp=optimize_pp)
 
-        self.init_pose_from_prev(new_id, hook_ids, mode="velocity")  # or "copy"
+        self.init_pose_from_prev(new_id, hook_ids, mode="copy")  # or "copy"
 
+        # ▶▶ 여기! Intrinsics 복사 + 동결
+        hook = hook_ids[0]                     # 보통 k-1
+        K0   = self.get_intrinsics()[hook].detach().cpu()
+        self.preset_intrinsics([K0], msk=[new_id])   # f, pp 주입 + requires_grad=False
+
+        from dust3r.cloud_opt.commons import edge_str
+
+        # cam2world(i)값으로 pw_poses 초기화
+        with torch.no_grad():
+            Ti_all = self.get_im_poses().detach()
+            for h in hook_ids:
+                for (i, j) in [(new_id, h), (h, new_id)]:
+                    key = edge_str(i, j)
+                    e = self.edge_to_idx[key]
+                    self._set_pose(self.pw_poses, e, Ti_all[i], force=True)  # pw_pose ≈ cam2world(i)
+
+             # hooks에서 온 DUSt3R 예측 z들을 모아서 중간값을 초기 깊이로
+            # zs = []
+            # for h in hook_ids:
+            #     key = edge_str(new_id, h)
+            #     z = self.pred_i[key][..., 2].reshape(-1)      # i=new 좌표의 z
+            #     zs.append(z[torch.isfinite(z)])
+            # z0 = torch.median(torch.cat(zs)) if len(zs) else torch.tensor(1.0, device=self.device)
+
+            # H, W = self.imshapes[new_id]
+            # init_depth = z0.expand(H, W)                      # 간단한 평탄 초기화
+            # self._set_depthmap(new_id, init_depth, force=True)  # log로 저장됨  :contentReference[oaicite:7]{index=7}
+            """
 
     def _maybe_add_edge(self, edge):
         i, j = edge
@@ -176,7 +231,7 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
             hook_ids = [int(h) for h in order[max(0, k - hooks):k]]
             self.add_image_with_hooks(new_id=new_id, hook_ids=hook_ids, optimize_pp=optimize_pp)
             self.compute_global_alignment(
-                init=None, niter=niter_step, schedule=schedule, lr=lr_step
+                init=init, niter=niter_step, schedule=schedule, lr=lr_step
             )
 
         # compute_global_alignment는 내부에서 loss를 반환하므로 마지막 것을 그대로 리턴
