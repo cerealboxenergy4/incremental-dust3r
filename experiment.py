@@ -10,7 +10,7 @@ if __name__ == '__main__':
     schedule = 'cosine'
     lr = 0.01
     niter = 300
-    edge_type = 'swin-3-noncyclic'
+    edge_type = 'swin-2-noncyclic'
 
     input_dir = "house_1x_1fps"
  
@@ -21,12 +21,7 @@ if __name__ == '__main__':
     images = load_images("/media/genchiprofac/Projects/assets/"+input_dir, size=512)
     pairs = make_pairs(images, scene_graph=edge_type, prefilter=None, symmetrize=True)
 
-
-    add_edge_type="logwin-2"
-    additional_pairs = make_pairs(images, scene_graph=add_edge_type, prefilter=None, symmetrize=False)
-    add = False
-
-    output = inference(pairs + additional_pairs if add else pairs, model, device, batch_size=batch_size)
+    output = inference(pairs, model, device, batch_size=batch_size)
 
     # at this stage, you have the raw dust3r predictions
     view1, pred1 = output['view1'], output['pred1']
@@ -58,7 +53,7 @@ if __name__ == '__main__':
     confidence_masks = scene.get_masks()
 
     # visualize reconstruction
-    scene.save_output(input_dir+"_"+((edge_type + "+"+add_edge_type) if add else edge_type))
+    scene.save_output(input_dir+"_"+(edge_type))
     scene.show()
   
 
