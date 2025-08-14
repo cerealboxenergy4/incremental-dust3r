@@ -12,7 +12,7 @@ if __name__ == '__main__':
     niter = 300
     edge_type = 'swin-3-noncyclic'
 
-    input_dir = "house_1x_3fps_10"
+    input_dir = "house_1x_3fps_20"
  
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     # confidence_masks = scene.get_masks()
 
     # visualize reconstruction
-    scene.save_output(input_dir+"_inc")
+    scene.save_output(input_dir+"_inc_2")
     scene.show()
   
 
