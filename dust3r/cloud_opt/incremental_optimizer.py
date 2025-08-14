@@ -75,7 +75,9 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
             self.freeze_images(frozen)
 
     @torch.no_grad()
-    def add_image_with_hooks(self, new_id, hook_ids, optimize_pp=True): # unused by the moment
+    def add_image_with_hooks(
+        self, new_id, hook_ids, optimize_pp=True
+    ):  # unused by the moment
         # 0) 엣지 등록 (new↔hooks)
         added = []
         for h in hook_ids:
@@ -121,16 +123,14 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         self.edges += edges_new
         self.n_imgs = self._check_edges()  # 0..N-1 연속성 보장
 
-
         # img 추가
         self.imgs.extend([None] * (self.n_imgs - len(self.imgs)))
-        if 'img' in added_view1 and 'img' in added_view2:
+        if "img" in added_view1 and "img" in added_view2:
             for v in range(len(edges_new)):
-                idx = added_view1['idx'][v]
-                self.imgs[idx] = rgb(added_view1['img'][v])
-                idx = added_view2['idx'][v]
-                self.imgs[idx] = rgb(added_view2['img'][v])
-
+                idx = added_view1["idx"][v]
+                self.imgs[idx] = rgb(added_view1["img"][v])
+                idx = added_view2["idx"][v]
+                self.imgs[idx] = rgb(added_view2["img"][v])
 
         # 2) pred/conf 사전에 주입
         for n, (i, j) in enumerate(edges_new):
@@ -183,8 +183,12 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         # 4) im_conf 업데이트(새로 들어온 엣지의 conf로 max-accumulate)
         for i, j in edges_new:
             k = edge_str(i, j)
-            self.im_conf[i] = torch.nn.Parameter(torch.maximum(self.im_conf[i], self.conf_i[k]), requires_grad=False)
-            self.im_conf[j] = torch.nn.Parameter(torch.maximum(self.im_conf[j], self.conf_j[k]), requires_grad=False)
+            self.im_conf[i] = torch.nn.Parameter(
+                torch.maximum(self.im_conf[i], self.conf_i[k]), requires_grad=False
+            )
+            self.im_conf[j] = torch.nn.Parameter(
+                torch.maximum(self.im_conf[j], self.conf_j[k]), requires_grad=False
+            )
 
         # 5) pw_poses / pw_adaptors 확장 + 초기화
         #    (간단히: 각 새 엣지 e=(i,j)의 pw_pose를 cam2world(i)로 시작)
@@ -206,6 +210,12 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         self.thaw_images([idx], optimize_pp=False)
 
         self.edge_to_idx = {edge_str(i, j): e for e, (i, j) in enumerate(self.edges)}
+
+        # active edges 갱신 (새롭게 추가된 엣지쌍만)
+        self.active_edges.clear()
+        for i, j in edges_new:
+            self._maybe_add_edge((i, j))
+            self._maybe_add_edge((j, i))
 
     def _maybe_add_edge(self, edge):
         i, j = edge
@@ -285,7 +295,7 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         # assert len(self._get_msk_indices()) == 1
 
         self.compute_global_alignment(
-            init="mst", niter=niter_step, schedule=schedule, lr=lr_step
+            init=None, niter=niter_step, schedule=schedule, lr=lr_step
         )
         return self.forward().item()
 
@@ -298,6 +308,8 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
     ):
         seeds = list(range(seed))
         self.bootstrap(seed_ids=seeds, fully_connect=True)
-        return self.compute_global_alignment(  # BasePCOptimizer가 제공하는 동일 API 재사용
-            init="mst", niter=niter, schedule=schedule, lr=lr
+        return (
+            self.compute_global_alignment(  # BasePCOptimizer가 제공하는 동일 API 재사용
+                init="mst", niter=niter, schedule=schedule, lr=lr
+            )
         )

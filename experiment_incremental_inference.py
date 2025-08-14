@@ -57,12 +57,12 @@ if __name__ == "__main__":
     batch_size = 1
     schedule = "linear"
     lr = 0.01
-    lr_step = 0.01
+    lr_step = 0.1
     niter_boot = 300
-    niter_step = 50
+    niter_step = 200
     seeds = 3
     hooks = 2
-    input_dir = "round1f_20"
+    input_dir = "house_1x_3fps_20"
     output_name = f"test_{input_dir}_{schedule}_seeds_{seeds}_hooks_{hooks}_lr_{lr}+{lr_step}_niter_{niter_boot}+{niter_step}"
 
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
@@ -70,6 +70,8 @@ if __name__ == "__main__":
     model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
     # load_images can take a list of images or a directory
     images = load_images("/media/genchiprofac/Projects/assets/" + input_dir, size=512)
+
+    images = images[:10]
 
     incremental_loader(
         images,
