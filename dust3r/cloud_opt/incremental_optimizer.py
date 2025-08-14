@@ -75,7 +75,7 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
             self.freeze_images(frozen)
 
     @torch.no_grad()
-    def add_image_with_hooks(self, new_id, hook_ids, optimize_pp=True):
+    def add_image_with_hooks(self, new_id, hook_ids, optimize_pp=True): # unused by the moment
         # 0) 엣지 등록 (new↔hooks)
         added = []
         for h in hook_ids:
@@ -207,8 +207,6 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
 
         self.edge_to_idx = {edge_str(i, j): e for e, (i, j) in enumerate(self.edges)}
 
-        ...
-
     def _maybe_add_edge(self, edge):
         i, j = edge
         key = edge_str(i, j)
@@ -277,44 +275,6 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         if ret_details:
             return loss, details
         return loss
-
-    def compute_incremental_alignment(
-        self,
-        order,  # 정렬에 쓸 이미지 인덱스 순서 (예: [0,1,2,3,...])
-        seed=3,  # 처음 부트스트랩에 쓸 개수
-        hooks=2,  # 새 이미지가 연결할 최근 이웃 개수
-        init="mst",  # 부트스트랩 정렬 초기화 ("mst"/None/등)
-        niter_boot=300,  # 부트스트랩 최적화 횟수
-        niter_step=100,  # 증분 스텝 최적화 횟수
-        schedule="linear",
-        lr_boot=1e-2,
-        lr_step=5e-3,
-        optimize_pp=False,  # 새 이미지에서 pp까지 풀지 여부
-    ):
-        """
-        증분 전 과정을 한 번에 실행하고 마지막 loss(float)를 반환.
-        BasePCOptimizer.compute_global_alignment(...)를 내부에서 그대로 재사용.
-        """
-        # 1) 부트스트랩
-        seeds = list(order[:seed])
-        self.bootstrap(seed_ids=seeds, fully_connect=True)
-        self.compute_global_alignment(  # BasePCOptimizer가 제공하는 동일 API 재사용
-            init=init, niter=niter_boot, schedule=schedule, lr=lr_boot
-        )
-
-        # 2) 증분 스텝
-        for k in range(seed, len(order)):
-            new_id = int(order[k])
-            hook_ids = [int(h) for h in order[max(0, k - hooks) : k]]
-            self.add_image_with_hooks(
-                new_id=new_id, hook_ids=hook_ids, optimize_pp=optimize_pp
-            )
-            self.compute_global_alignment(
-                init=init, niter=niter_step, schedule=schedule, lr=lr_step
-            )
-
-        # compute_global_alignment는 내부에서 loss를 반환하므로 마지막 것을 그대로 리턴
-        return self.forward().item()
 
     def compute_one_step_alignment(
         self,

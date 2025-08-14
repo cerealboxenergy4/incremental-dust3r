@@ -20,8 +20,6 @@ def incremental_loader(
     niter_step=100,
     
 ):
-
-    seeds = seeds
     pairs = make_pairs(images[:seeds], scene_graph="complete", symmetrize=True)
     boot_output = inference(pairs, model, device, batch_size=batch_size)
     scene = global_aligner(
@@ -52,7 +50,6 @@ def incremental_loader(
         )
     scene.save_output(output_name)
     scene.show()
-    ...
 
 
 if __name__ == "__main__":
@@ -65,7 +62,7 @@ if __name__ == "__main__":
     niter_step = 50
     seeds = 3
     hooks = 2
-    input_dir = "house_1x_3fps_20"
+    input_dir = "round1f_20"
     output_name = f"test_{input_dir}_{schedule}_seeds_{seeds}_hooks_{hooks}_lr_{lr}+{lr_step}_niter_{niter_boot}+{niter_step}"
 
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
