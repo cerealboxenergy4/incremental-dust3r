@@ -9,12 +9,14 @@ from enum import Enum
 from .optimizer import PointCloudOptimizer
 from .modular_optimizer import ModularPointCloudOptimizer
 from .pair_viewer import PairViewer
+from .incremental_optimizer import IncrementalPCOptimizer
 
 
 class GlobalAlignerMode(Enum):
     PointCloudOptimizer = "PointCloudOptimizer"
     ModularPointCloudOptimizer = "ModularPointCloudOptimizer"
     PairViewer = "PairViewer"
+    IncrementalPointCloudOptimizer = "IncrementalPointCloudOptimizer"
 
 
 def global_aligner(dust3r_output, device, mode=GlobalAlignerMode.PointCloudOptimizer, **optim_kw):
@@ -25,6 +27,8 @@ def global_aligner(dust3r_output, device, mode=GlobalAlignerMode.PointCloudOptim
         net = PointCloudOptimizer(view1, view2, pred1, pred2, **optim_kw).to(device)
     elif mode == GlobalAlignerMode.ModularPointCloudOptimizer:
         net = ModularPointCloudOptimizer(view1, view2, pred1, pred2, **optim_kw).to(device)
+    elif mode == GlobalAlignerMode.IncrementalPointCloudOptimizer:
+        net = IncrementalPCOptimizer(view1, view2, pred1, pred2, **optim_kw).to(device)
     elif mode == GlobalAlignerMode.PairViewer:
         net = PairViewer(view1, view2, pred1, pred2, **optim_kw).to(device)
     else:

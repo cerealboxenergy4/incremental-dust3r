@@ -143,3 +143,6 @@ class ModularPointCloudOptimizer (BasePCOptimizer):
 
     def get_pts3d(self):
         return self.depth_to_pts3d()
+    
+    def get_known_focal_mask(self):
+        return torch.tensor([not (p.requires_grad) for p in self.im_focals])

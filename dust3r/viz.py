@@ -8,6 +8,9 @@ import PIL.Image
 import numpy as np
 from scipy.spatial.transform import Rotation
 import torch
+from PIL import Image
+import io
+import os
 
 from dust3r.utils.geometry import geotrf, get_med_dist_between_poses, depthmap_to_absolute_camera_coordinates
 from dust3r.utils.device import to_numpy
@@ -152,7 +155,7 @@ class SceneViz:
         if isinstance(color, (list, np.ndarray, torch.Tensor)):
             color = to_numpy(color)
             col = np.concatenate([p[m] for p,m in zip(color,mask)])
-            assert col.shape == pts.shape, bb()
+            assert col.shape == pts.shape #,bb()
             pct.visual.vertex_colors = uint8(col.reshape(-1,3))
         else:
             assert len(color) == 3
@@ -207,6 +210,17 @@ class SceneViz:
 
     def show(self, point_size=2):
         self.scene.show(line_settings= {'point_size': point_size})
+
+    def save_img(self, path, point_size=2):
+        png = self.scene.save_image(resolution=[640, 480], visible=True, line_settings={'point_size': point_size})
+        img = Image.open(io.BytesIO(png))
+        img.save(path)
+
+    def save_glb(self, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        self.scene.export(file_obj=path, file_type="glb")
+        print(f"[INFO] Saved scene as .GLB to {path}")
+
 
 
 def show_raw_pointcloud_with_cams(imgs, pts3d, mask, focals, cams2world,

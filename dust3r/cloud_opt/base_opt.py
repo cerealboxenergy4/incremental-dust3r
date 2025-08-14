@@ -321,6 +321,35 @@ class BasePCOptimizer (nn.Module):
 
         viz.show(**kw)
         return viz
+    
+    def save_output(self, path, show_pw_cams=False, show_pw_pts3d=False, cam_size=None, **kw):
+        viz = SceneViz()
+        if self.imgs is None:
+            colors = np.random.randint(0, 256, size=(self.n_imgs, 3))
+            colors = list(map(tuple, colors.tolist()))
+            for n in range(self.n_imgs):
+                viz.add_pointcloud(self.get_pts3d()[n], colors[n], self.get_masks()[n])
+        else:
+            viz.add_pointcloud(self.get_pts3d(), self.imgs, self.get_masks())
+            colors = np.random.randint(256, size=(self.n_imgs, 3))
+
+        # camera poses
+        im_poses = to_numpy(self.get_im_poses())
+        if cam_size is None:
+            cam_size = auto_cam_size(im_poses)
+        viz.add_cameras(im_poses, self.get_focals(), colors=colors,
+                        images=self.imgs, imsizes=self.imsizes, cam_size=cam_size)
+        if show_pw_cams:
+            pw_poses = self.get_pw_poses()
+            viz.add_cameras(pw_poses, color=(192, 0, 192), cam_size=cam_size)
+
+            if show_pw_pts3d:
+                pts = [geotrf(pw_poses[e], self.pred_i[edge_str(i, j)]) for e, (i, j) in enumerate(self.edges)]
+                viz.add_pointcloud(pts, (128, 0, 128))
+
+        # viz.show(**kw)
+        viz.save_glb("experiments/"+path+".glb")
+        return viz
 
 
 def global_alignment_loop(net, lr=0.01, niter=300, schedule='cosine', lr_min=1e-6):
@@ -330,7 +359,7 @@ def global_alignment_loop(net, lr=0.01, niter=300, schedule='cosine', lr_min=1e-
 
     verbose = net.verbose
     if verbose:
-        print('Global alignement - optimizing for:')
+        print('Global alignment - optimizing for:')
         print([name for name, value in net.named_parameters() if value.requires_grad])
 
     lr_base = lr

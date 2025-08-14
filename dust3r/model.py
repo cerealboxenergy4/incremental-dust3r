@@ -13,6 +13,7 @@ import huggingface_hub
 from .utils.misc import fill_default_args, freeze_all_params, is_symmetrized, interleave, transpose_to_landscape
 from .heads import head_factory
 from dust3r.patch_embed import get_patch_embed
+import argparse
 
 import dust3r.utils.path_to_croco  # noqa: F401
 from models.croco import CroCoNet  # noqa
@@ -27,6 +28,8 @@ assert version.parse(hf_version_number) >= version.parse("0.22.0"), ("Outdated h
 def load_model(model_path, device, verbose=True):
     if verbose:
         print('... loading model from', model_path)
+
+    torch.serialization.add_safe_globals([argparse.Namespace])
     ckpt = torch.load(model_path, map_location='cpu')
     args = ckpt['args'].model.replace("ManyAR_PatchEmbed", "PatchEmbedDust3R")
     if 'landscape_only' not in args:
