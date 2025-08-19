@@ -74,41 +74,6 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         if len(frozen):
             self.freeze_images(frozen)
 
-    @torch.no_grad()
-    def add_image_with_hooks(
-        self, new_id, hook_ids, optimize_pp=True
-    ):  # unused by the moment
-        # 0) 엣지 등록 (new↔hooks)
-        added = []
-        for h in hook_ids:
-            if self._maybe_add_edge((new_id, h)):
-                added.append((new_id, h))
-            if self._maybe_add_edge((h, new_id)):
-                added.append((h, new_id))
-
-        # 1) 전부 잠깐 freeze (init_from_known_poses가 '모두 known'을 요구)
-        all_ids = list(range(self.n_imgs))
-        self.freeze_images(
-            all_ids
-        )  # im_poses / im_depth / focals / pp 다 freeze 상태로
-
-        # 2) 새 프레임 포즈/내참수 초기값 주입
-        self.init_pose_from_prev(
-            new_id, hook_ids, mode="copy"
-        )  # mode = "copy" or "velocity"
-        #   intrinsics는 훅에서 복사(반드시 CPU로 건네기)
-        K0 = self.get_intrinsics()[hook_ids[0]].detach().cpu()
-        self.preset_intrinsics([K0], msk=[new_id])  # f, pp 주입 + 동결
-
-        # 3) 한 방에 초기화: pw_poses + depthmaps
-        init_from_known_poses(self, niter_PnP=10)  # ← 여기!
-        #   - 각 엣지(e)의 pw_pose를 PnP/정합으로 세팅
-        #   - 각 이미지의 depth를 pred_i[...,2]*scale로 세팅
-
-        # 4) 이제 새 프레임만 thaw해서 학습
-        self.freeze_images(all_ids)  # 일단 다시 전부 freeze
-        self.thaw_images([new_id], optimize_pp=optimize_pp)
-        # (원하면 pw_poses도 활성화된 엣지만 학습되도록 그대로 두면 됨)
 
     @torch.no_grad()
     def add_image_incrementally(
@@ -295,7 +260,7 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         # assert len(self._get_msk_indices()) == 1
 
         self.compute_global_alignment(
-            init=None, niter=niter_step, schedule=schedule, lr=lr_step
+            init="mst", niter=niter_step, schedule=schedule, lr=lr_step
         )
         return self.forward().item()
 
