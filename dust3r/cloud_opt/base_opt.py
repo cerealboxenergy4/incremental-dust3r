@@ -281,6 +281,10 @@ class BasePCOptimizer (nn.Module):
         elif init == 'known_poses':
             init_fun.init_from_known_poses(self, min_conf_thr=self.min_conf_thr,
                                            niter_PnP=niter_PnP)
+        elif init == "partial_known_poses":
+            init_fun.init_from_partial_known_poses(
+                self, min_conf_thr=self.min_conf_thr, niter_PnP=niter_PnP
+            )
         else:
             raise ValueError(f'bad value for {init=}')
 
@@ -321,7 +325,7 @@ class BasePCOptimizer (nn.Module):
 
         viz.show(**kw)
         return viz
-    
+
     def save_output(self, path, show_pw_cams=False, show_pw_pts3d=False, cam_size=None, **kw):
         viz = SceneViz()
         if self.imgs is None:

@@ -4,28 +4,30 @@ from dust3r.utils.image import load_images
 from dust3r.image_pairs import make_pairs
 from dust3r.cloud_opt import global_aligner, GlobalAlignerMode
 
-if __name__ == '__main__':
-    device = 'cuda'
+if __name__ == "__main__":
+    device = "cuda"
     batch_size = 1
-    schedule = 'cosine'
+    schedule = "cosine"
     lr = 0.01
     niter = 300
-    edge_type = 'swin-2-noncyclic'
+    edge_type = "swin-2-noncyclic"
 
-    input_dir = "house_1x_1fps"
- 
+    input_dir = "house_1x_2fps"
+
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
     model = AsymmetricCroCo3DStereo.from_pretrained(model_name).to(device)
     # load_images can take a list of images or a directory
-    images = load_images("/media/genchiprofac/Projects/assets/"+input_dir, size=512)
+    images = load_images("/media/genchiprofac/Projects/assets/" + input_dir, size=512)
+
+    images = images[:50]
     pairs = make_pairs(images, scene_graph=edge_type, prefilter=None, symmetrize=True)
 
     output = inference(pairs, model, device, batch_size=batch_size)
 
     # at this stage, you have the raw dust3r predictions
-    view1, pred1 = output['view1'], output['pred1']
-    view2, pred2 = output['view2'], output['pred2']
+    view1, pred1 = output["view1"], output["pred1"]
+    view2, pred2 = output["view2"], output["pred2"]
     # here, view1, pred1, view2, pred2 are dicts of lists of len(2)
     #  -> because we symmetrize we have (im1, im2) and (im2, im1) pairs
     # in each view you have:
@@ -41,23 +43,24 @@ if __name__ == '__main__':
     # depending on your task, you may be fine with the raw output and not need it
     # with only two input images, you could use GlobalAlignerMode.PairViewer: it would just convert the output
     # if using GlobalAlignerMode.PairViewer, no need to run compute_global_alignment
-    scene = global_aligner(output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer)
+    scene = global_aligner(
+        output, device=device, mode=GlobalAlignerMode.PointCloudOptimizer
+    )
 
-    loss = scene.compute_global_alignment(init="mst", niter=niter, schedule=schedule, lr=lr)
+    loss = scene.compute_global_alignment(
+        init="mst", niter=niter, schedule=schedule, lr=lr
+    )
 
     # retrieve useful values from scene:
-    imgs = scene.imgs
-    focals = scene.get_focals()
-    poses = scene.get_im_poses()
-    pts3d = scene.get_pts3d()
-    confidence_masks = scene.get_masks()
+    # imgs = scene.imgs
+    # focals = scene.get_focals()
+    # poses = scene.get_im_poses()
+    # pts3d = scene.get_pts3d()
+    # confidence_masks = scene.get_masks()
 
     # visualize reconstruction
-    scene.save_output(input_dir+"_"+(edge_type))
+    scene.save_output(input_dir + "_" + (edge_type))
     scene.show()
-  
-
-
 
 
 """

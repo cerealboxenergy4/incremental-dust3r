@@ -18,10 +18,7 @@ def incremental_loader(
     lr_step=1e-2,
     niter=300,
     niter_step=100,
-    
 ):
-
-    seeds = seeds
     pairs = make_pairs(images[:seeds], scene_graph="complete", symmetrize=True)
     boot_output = inference(pairs, model, device, batch_size=batch_size)
     scene = global_aligner(
@@ -52,21 +49,20 @@ def incremental_loader(
         )
     scene.save_output(output_name)
     scene.show()
-    ...
 
 
 if __name__ == "__main__":
     device = "cuda"
     batch_size = 1
-    schedule = "linear"
-    lr = 0.01
-    lr_step = 0.01
-    niter_boot = 300
-    niter_step = 50
+    schedule = "cosine"
+    lr = 0.1
+    lr_step = 0.1
+    niter_boot = 200
+    niter_step = 200
     seeds = 3
-    hooks = 2
-    input_dir = "house_1x_3fps_20"
-    output_name = f"test_{input_dir}_{schedule}_seeds_{seeds}_hooks_{hooks}_lr_{lr}+{lr_step}_niter_{niter_boot}+{niter_step}"
+    hooks = 3
+    input_dir = "house_1x_3fps_25"
+    output_name = f"test_{input_dir}_{schedule}_hooks_{hooks}_lr_{lr}+{lr_step}_niter_{niter_boot}+{niter_step}"
 
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
@@ -85,6 +81,6 @@ if __name__ == "__main__":
         hooks=hooks,
         niter=niter_boot,
         niter_step=niter_step,
-        lr = lr, 
-        lr_step= lr_step
+        lr=lr,
+        lr_step=lr_step,
     )
