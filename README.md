@@ -1,7 +1,10 @@
 
-# Slight modification to `DUSt3R: Geometric 3D Vision Made Easy`  
+## Slight modification to `DUSt3R: Geometric 3D Vision Made Easy`  
 
-use experiment_incremental_inference.py for testing
+
+
+
+You can use `experiment_incremental_inference.py` for your own testing
 
 ---
 **To do:**
