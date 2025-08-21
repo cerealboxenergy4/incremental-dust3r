@@ -74,7 +74,6 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         if len(frozen):
             self.freeze_images(frozen)
 
-
     @torch.no_grad()
     def add_image_incrementally(
         self, idx, hooks, added_view1, added_view2, added_pred1, added_pred2
@@ -176,6 +175,22 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
 
         self.edge_to_idx = {edge_str(i, j): e for e, (i, j) in enumerate(self.edges)}
 
+        # 기존 pw_poses, adaptors 마스킹
+        E = self.pw_poses.shape[0]
+        train_eids = [self.edge_to_idx[edge_str(i, j)] for (i, j) in edges_new]
+
+        mask_pw = torch.zeros((E, 1 + self.POSE_DIM), device=self.device)
+        mask_ad = torch.zeros((E, 2), device=self.device)
+        mask_pw[train_eids] = 1
+        mask_ad[train_eids] = 1
+
+        if hasattr(self, "_pw_hook"):
+            self._pw_hook.remove()
+        if hasattr(self, "_ad_hook"):
+            self._ad_hook.remove()
+        self._pw_hook = self.pw_poses.register_hook(lambda g: g * mask_pw)
+        self._ad_hook = self.pw_adaptors.register_hook(lambda g: g * mask_ad)
+
         # active edges 갱신 (새롭게 추가된 엣지쌍만)
         self.active_edges.clear()
         for i, j in edges_new:
@@ -206,6 +221,49 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         self._set_pose(
             self.im_poses, new_id, T_init, force=True
         )  # 4x4 전달 OK :contentReference[oaicite:2]{index=2}
+
+    def find_similar_cameras(self, hooks=3, angle_thres=0.2, dist_thres=0.3):
+        poses = self.get_im_poses()
+
+        if poses.size(dim=0) < hooks:
+            return []
+
+        def dir_from_RT(RT):
+            R = RT[..., :3, :3]
+            ez = torch.tensor([0.0, 0.0, 1.0], device=R.device, dtype=R.dtype)
+            d = R @ ez  # [..., 3]
+            d = d / (d.norm(dim=-1, keepdim=True) + 1e-9)
+            return d
+
+        def center_from_RT(RT):
+            return RT[..., :3, 3]
+
+        def angle_between(u, v):
+            u = u / (u.norm(dim=-1, keepdim=True) + 1e-9)
+            v = v / (v.norm(dim=-1, keepdim=True) + 1e-9)
+            cosv = (u * v).sum(dim=-1).clamp(-1.0, 1.0)
+            return torch.arccos(cosv)  # [..] in radians
+
+        dirs = dir_from_RT(poses)
+        centers = center_from_RT(poses)
+
+        dir_query = dirs[-1]
+        center_query = centers[-1]
+
+        thetas = angle_between(dirs[:-hooks], dir_query)
+        dists = (centers[:-hooks] - center_query).norm(dim=-1)
+
+        mask = (thetas < angle_thres) & (dists < dist_thres)
+        similar_indices = torch.where(mask)[0].tolist()
+
+        from itertools import groupby
+
+        def get_first_of_consecutive(numbers):
+            if not numbers:
+                return []
+            return [next(g)[1] for k, g in groupby(enumerate(numbers), lambda t: t[1] - t[0])]
+
+        return get_first_of_consecutive(similar_indices)
 
     # ---------- override forward to use only active_edges ----------
     def forward(self, ret_details=False):
@@ -257,7 +315,6 @@ class IncrementalPCOptimizer(ModularPointCloudOptimizer):
         schedule="linear",
         lr_step=1e-2,
     ):
-        # assert len(self._get_msk_indices()) == 1
 
         self.compute_global_alignment(
             init="mst", niter=niter_step, schedule=schedule, lr=lr_step

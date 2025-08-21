@@ -10,6 +10,7 @@ def incremental_loader(
     model,
     device,
     output_name,
+    loop=True,
     schedule="linear",
     batch_size=1,
     seeds=3,
@@ -31,6 +32,13 @@ def incremental_loader(
 
     for i in range(3, len(images)):
         added_pairs = []
+        if loop:
+            reference_frames = scene.find_similar_cameras(hooks=hooks)
+            print("references: " + str(reference_frames))
+            for r in range(len(reference_frames)):
+                added_pairs.append((images[i], images[reference_frames[r]]))
+                added_pairs.append((images[reference_frames[r]], images[i]))
+
         for j in range(hooks):
             added_pairs.append((images[i], images[i - j - 1]))
             added_pairs.append((images[i - j - 1], images[i]))
@@ -57,12 +65,13 @@ if __name__ == "__main__":
     schedule = "cosine"
     lr = 0.1
     lr_step = 0.1
-    niter_boot = 200
-    niter_step = 200
+    niter_boot = 190
+    niter_step = 100
     seeds = 3
     hooks = 3
     input_dir = "house_1x_3fps_25"
-    output_name = f"test_{input_dir}_{schedule}_hooks_{hooks}_lr_{lr}+{lr_step}_niter_{niter_boot}+{niter_step}"
+    loop = True
+    output_name = f"inc_{input_dir}_{schedule}_lr_{lr}+{lr_step}_niter_{niter_boot}+{niter_step}_loop_{loop}"
 
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
@@ -74,6 +83,7 @@ if __name__ == "__main__":
         images,
         model,
         device,
+        loop=loop,
         output_name=output_name,
         schedule=schedule,
         batch_size=batch_size,

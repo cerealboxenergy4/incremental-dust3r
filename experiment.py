@@ -11,8 +11,7 @@ if __name__ == "__main__":
     lr = 0.01
     niter = 300
     edge_type = "swin-2-noncyclic"
-
-    input_dir = "house_1x_2fps"
+    input_dir = "desk_11s_3fps"
 
     model_name = "/media/genchiprofac/Projects/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth"
     # you can put the path to a local checkpoint in model_name if needed
@@ -20,7 +19,6 @@ if __name__ == "__main__":
     # load_images can take a list of images or a directory
     images = load_images("/media/genchiprofac/Projects/assets/" + input_dir, size=512)
 
-    images = images[:50]
     pairs = make_pairs(images, scene_graph=edge_type, prefilter=None, symmetrize=True)
 
     output = inference(pairs, model, device, batch_size=batch_size)
